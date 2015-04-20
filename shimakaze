@@ -1,0 +1,245 @@
+#!/usr/local/bin/bash
+
+# shimakaze
+
+# shimakaze is a commandline utility that seeks to
+# assist the manipulation of media inputs and
+# outputs while maintaining a human-readable, KISS
+# syntax.
+
+# Less generally, shimakaze is a tool that assists
+# in the following tasks:
+
+# Extracting fonts from a video
+# Burning subtitles into a video
+# Streaming a video to a remote RTMP server
+
+# shimakaze is almost entirely just some nice
+# aliases for ffmpeg and mkvtoolnix commands. If
+# you want more power and flexibility, I highly
+# suggest you look further into those projects.
+# For those of you who just want to 'get things
+# done', though, shimakaze should suit your needs
+# rather well.
+
+# Usage: shimakaze input [options] output
+# input should be a video file, usually an mkv.
+# output can be either a path to a filename or an rtmp address.
+
+# Valid options:
+# -a, --audio-track: Specify the audio track to use. Default: 0
+# -s, --subtitle-track: Specify the subtitle track to use. Default: 0
+# -v, --video-track: Specify the video track to use. Default: 0
+# -h, --hardsub: Hardsub the video.
+# -xf, --extract-fonts: Extract the fonts from the video into ~/.fonts. This will automatically occur when hardsubbing.
+# -fm, --ffmpeg-options: Additional ffmpeg options to pass in. They will be added to the end so you can override whatever you like.
+
+# Usage examples:
+# shimakaze video.mp4 rtmp://example.com/live/abcd
+# shimakaze video.mkv --hardsub video-out.mp4
+# shimakaze video.mkv --hardsub rtmp://example.com/live/abcd
+# shimakaze video.mkv --audio-track 1 --subtitle-track 1 --hardsub rtmp://example.com/live/abcd
+# shimakaze video.mp4 --extract-fonts
+
+error() {
+  echo "Error: $1"
+  exit 1
+}
+
+init_variables(){
+  input_file=""
+  audio_track=0
+  video_track=0
+  subtitle_track=0
+  output_path=""
+  ffmpeg_options=""
+
+  should_extract_fonts="false"
+  should_hardsub="false"
+  output_type=""
+
+  starting_path=$(pwd)
+}
+
+read_options(){
+  while [ "$1" != "" ]; do
+    local shift_offset=1
+    case "$1" in
+    -a|--audio-track)
+      audio_track="$2"
+      shift_offset=2
+      ;;
+    -s|--subtitle-track)
+      subtitle_track="$2"
+      shift_offset=2
+      ;;
+    -v|--video-track)
+      video_track="$2"
+      shift_offset=2
+      ;;
+    -h|--hardsub)
+      should_extract_fonts="true"
+      should_hardsub="true"
+      ;;
+    -xf|--extract-fonts)
+      should_extract_fonts="true"
+      ;;
+    -fm|--ffmpeg-options)
+      ffmpeg_options="$2"
+      shift_offset=2
+      ;;
+    *)
+      if [ -z "$input_file" ]
+      then
+        input_file="$1"
+      else
+        output_path="$1"
+      fi
+    esac
+    shift $shift_offset
+  done
+}
+
+handle_options() {
+  if [ -z "$input_file" ]
+  then
+    error "You must specify an input file!"
+  fi
+
+  input_file_absolute="$(realpath "$input_file")"
+
+  if [ -z "$output_path" ]
+  then
+    if ["$should_extract_fonts" == "true" ] && [ "$should_hardsub" == "false" ]
+    then
+      output_type="none"
+    else
+      output_path="${input_file%.*}_out.mp4"
+      output_type="file"
+    fi
+  else
+    local first_four=${output_path:0:4}
+    case "$first_four" in
+    rtmp|RTMP)
+      output_type="rtmp"
+      ;;
+    *)
+      output_type="file"
+    esac
+  fi
+
+  if [ "$output_type" == "file" ]
+  then
+    touch "$output_path"
+    output_file_absolute="$(realpath "$output_path")"
+  fi
+}
+
+create_tmpdir() {
+  tmpdir=$(mktemp -t 'shimakaze' -d)
+  [ -z "$tmpdir" ] && error "A temporary directory could not be created. Check the output of 'mktemp -d'."
+}
+cleanup_tmpdir() {
+  cd "$starting_path"
+  rm -rf "$tmpdir"
+}
+
+extract_fonts() {
+echo "---EXTRACTING FONTS---"
+
+local numfonts=$(mkvinfo "$input_file_absolute" | grep -c Attached)
+
+if [ "$numfonts" -gt 0 ]
+then
+  mkdir "$tmpdir/fonts"
+  cd "$tmpdir/fonts"
+
+  mkvextract attachments "$input_file_absolute" $(seq 35) >/dev/null 2>/dev/null
+
+  local target_font_dir="$HOME/.fonts"
+  mkdir -p "$target_font_dir"
+
+  local new_fonts=0
+
+  for f in *
+  do
+    local target="$target_font_dir/$(basename "$f")"
+    if [ ! -e "$target" ]
+    then
+      echo "Found new font: $f"
+      cp "$f" "$target_font_dir"
+      new_fonts=$((new_fonts+1))
+    fi
+  done
+
+  if [ "$new_fonts" -gt 0 ]
+  then
+    echo "Updating font cache..."
+    fc-cache -f
+  fi
+fi
+
+}
+
+hardsub() {
+echo "---HARDSUBBING VIDEO---"
+
+cd "$tmpdir"
+
+# Extract the subtitles
+echo "Extracting subtitles..."
+ffmpeg \
+  -i "$input_file_absolute" \
+  -map 0:s:$subtitle_track \
+  subs.ass \
+  >/dev/null 2>/dev/null
+
+ffmpeg_options="-sn -vf ass=subs.ass $ffmpeg_options"
+
+}
+
+encode() {
+echo "---ENCODING VIDEO---"
+
+if [ "$output_type" == "file" ] # This is pointless for most use-cases
+then
+  ffmpeg \
+    -y \
+    -i "$input_file_absolute" \
+    -map 0:v:$video_track \
+    -map 0:a:$audio_track \
+    $ffmpeg_options \
+    "$output_file_absolute"
+fi
+
+if [ "$output_type" == "rtmp" ]
+then
+  ffmpeg \
+    -re \
+    -i "$input_file_absolute" \
+    -map 0:v:$video_track \
+    -map 0:a:$audio_track \
+    -vcodec libx264 \
+    -preset fast \
+    -tune animation \
+    -b:a 128k \
+    -b:v 900k \
+    -ar 44100 \
+    $ffmpeg_options\
+    -f flv \
+    "$output_path"
+fi
+
+}
+
+main() {
+  init_variables
+  read_options "$@"
+  handle_options
+  create_tmpdir
+    test "$should_extract_fonts" == "true" && extract_fonts
+    test "$should_hardsub" == "true" && hardsub
+    encode
+  cleanup_tmpdir
+}
+main "$@"
