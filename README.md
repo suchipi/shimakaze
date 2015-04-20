@@ -25,6 +25,7 @@ Usage
 -----
 
 `shimakaze input [options] output`
+
 input should be a video file, usually an mkv.
 output can be either a path to a filename or an rtmp address.
 
@@ -115,7 +116,7 @@ You can save a lot of time by just using `pkg` to grab those before you build ff
 If you want to run this script on Linux, you'll need to:
 * Build or install ffmpeg, ensuring that it has support for libx264 and libass enabled
 * Build or install mkvtoolnix. Your package manager's version should be fine.
-* Change the first line of the script from `/usr/local/bin/bash` to `/bin/bash`
+* Change the first line of the script from `#!/usr/local/bin/bash` to `#!/bin/bash`
 
 ### Lazy Fingers
 
@@ -143,6 +144,7 @@ Resources
 ---------
 
 If you want to run your own RTMP server, I highly suggest you use the [NGINX RTMP module](https://github.com/arut/nginx-rtmp-module).
+
 [Open Broadcast Software](https://obsproject.com/forum/resources/how-to-set-up-your-own-private-rtmp-server-using-nginx.50/) has a nice article on how to do this.
 
 License
