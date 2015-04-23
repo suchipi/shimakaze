@@ -33,6 +33,7 @@
 # -h, --hardsub: Hardsub the video.
 # -xf, --extract-fonts: Extract the fonts from the video into ~/.fonts. This will automatically occur when hardsubbing.
 # -fm, --ffmpeg-options: Additional ffmpeg options to pass in. They will be added to the end so you can override whatever you like.
+# -t, --start-time: Start video at a certain time, in seconds.
 
 # Usage examples:
 # shimakaze video.mp4 rtmp://example.com/live/abcd
@@ -53,6 +54,7 @@ init_variables(){
   subtitle_track=0
   output_path=""
   ffmpeg_options=""
+  start_time="0"
 
   should_extract_fonts="false"
   should_hardsub="false"
@@ -86,6 +88,10 @@ read_options(){
       ;;
     -fm|--ffmpeg-options)
       ffmpeg_options="$2"
+      shift_offset=2
+      ;;
+    -t|--start-time)
+      start_time="$2"
       shift_offset=2
       ;;
     *)
@@ -189,22 +195,25 @@ cd "$tmpdir"
 # Extract the subtitles
 echo "Extracting subtitles..."
 ffmpeg \
+  -ss "$start_time" \
   -i "$input_file_absolute" \
   -map 0:s:$subtitle_track \
   subs.ass \
   >/dev/null 2>/dev/null
 
-ffmpeg_options="-sn -vf ass=subs.ass $ffmpeg_options"
+# All this PTS mess is necessary due to a bug in ffmpeg. See https://trac.ffmpeg.org/ticket/2067
+ffmpeg_options="-sn -vf setpts=PTS+$start_time/TB,ass=subs.ass,setpts=PTS-STARTPTS $ffmpeg_options"
 
 }
 
 encode() {
 echo "---ENCODING VIDEO---"
 
-if [ "$output_type" == "file" ] # This is pointless for most use-cases
+if [ "$output_type" == "file" ]
 then
   ffmpeg \
     -y \
+    -ss "$start_time" \
     -i "$input_file_absolute" \
     -map 0:v:$video_track \
     -map 0:a:$audio_track \
@@ -216,6 +225,7 @@ if [ "$output_type" == "rtmp" ]
 then
   ffmpeg \
     -re \
+    -ss "$start_time" \
     -i "$input_file_absolute" \
     -map 0:v:$video_track \
     -map 0:a:$audio_track \

@@ -39,6 +39,7 @@ Valid options:
 -h, --hardsub: Hardsub the video.
 -xf, --extract-fonts: Extract the fonts from the video into ~/.fonts. This will automatically occur when hardsubbing.
 -fm, --ffmpeg-options: Additional ffmpeg options to pass in. They will be added to the end so you can override whatever you like.
+-t, --start-time: Start video at a certain time, in seconds.
 ```
 
 Examples
@@ -72,8 +73,8 @@ should be watched carefully so that it doesn't evolve into something like `--con
 because that's against the KISS principle. The `--format` flag would be used for standardized (be them de facto or de jure)
 formats that have a recognized 'normal' video and audio codec.
 * Stream pausing and resuming, if possible with ffmpeg
-* Starting a stream at a timestamp. Right now this doesn't work
-properly because of the behaviour when using ffmpeg's `-ss` and `-re` tags together.
+* ~~Starting a stream at a timestamp. Right now this doesn't work
+properly because of the behaviour when using ffmpeg's `-ss` and `-re` tags together.~~ Done
 * Selecting audio and subtitle tracks optionally by language or name instead of only ID
 
 Contributing
