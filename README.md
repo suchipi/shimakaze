@@ -117,6 +117,7 @@ You can save a lot of time by just using `pkg` to grab those before you build ff
 If you want to run this script on Linux, you'll need to:
 * Build or install ffmpeg, ensuring that it has support for libx264 and libass enabled
 * Build or install mkvtoolnix. Your package manager's version should be fine.
+* Build or install bsd realpath. Ubuntu has a package, called `realpath`.
 * Change the first line of the script from `#!/usr/local/bin/bash` to `#!/bin/bash`
 
 ### Lazy Fingers
