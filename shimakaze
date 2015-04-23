@@ -142,7 +142,7 @@ handle_options() {
 }
 
 create_tmpdir() {
-  tmpdir=$(mktemp -t 'shimakaze' -d)
+  tmpdir=$(mktemp -t 'shimakaze.XXXXXXX' -d)
   [ -z "$tmpdir" ] && error "A temporary directory could not be created. Check the output of 'mktemp -d'."
 }
 cleanup_tmpdir() {
