@@ -116,7 +116,7 @@ handle_options() {
 
   if [ -z "$output_path" ]
   then
-    if ["$should_extract_fonts" == "true" ] && [ "$should_hardsub" == "false" ]
+    if [ "$should_extract_fonts" == "true" ] && [ "$should_hardsub" == "false" ]
     then
       output_type="none"
     else
